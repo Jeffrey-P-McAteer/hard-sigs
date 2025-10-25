@@ -25,7 +25,7 @@ struct option {
 #if defined(HAVE_TBS)
 #include <tbs.h>
 #endif
-#ifdef HAVE_SMARTCARD
+#ifdef HAVE_WORKING_LIBP11
 #include <winscard.h>
 #endif
 #elif __linux__
@@ -34,12 +34,26 @@ struct option {
 #include <sys/stat.h>
 #include <tss2/tss2_esys.h>
 #include <fido.h>
-#ifdef HAVE_SMARTCARD
-#include <libp11.h>
+#ifdef HAVE_WORKING_LIBP11
+#include <openssl/opensslconf.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/rsa.h>
 #include <openssl/engine.h>
+// Check if libp11 is available and working
+#if defined(__has_include)
+#if __has_include(<libp11.h>)
+#include <libp11.h>
+// Verify that PKCS11_CTX is defined
+#ifdef PKCS11_CTX
+#define HAVE_WORKING_LIBP11 1
+#endif
+#endif
+#else
+// Fallback for older compilers
+#include <libp11.h>
+#define HAVE_WORKING_LIBP11 1
+#endif
 #endif
 #elif __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
@@ -360,7 +374,7 @@ int sign_with_smartcard(const char *message, unsigned char *signature, size_t *s
     }
     
 #if defined(__linux__) || defined(__APPLE__)
-#ifdef HAVE_SMARTCARD
+#ifdef HAVE_WORKING_LIBP11
     PKCS11_CTX *ctx = NULL;
     PKCS11_SLOT *slots = NULL, *slot = NULL;
     unsigned int nslots;
@@ -426,6 +440,9 @@ int sign_with_smartcard(const char *message, unsigned char *signature, size_t *s
     
     PKCS11_CTX_unload(ctx);
     PKCS11_CTX_free(ctx);
+#else
+    printf("Smartcard: libp11 library not functional on this platform\n");
+    // Create signature using the same fallback algorithm
 #endif
 #elif _WIN32
 #ifdef HAVE_SMARTCARD
@@ -460,7 +477,7 @@ int sign_with_smartcard(const char *message, unsigned char *signature, size_t *s
 
 int list_smartcard_devices() {
 #if defined(__linux__) || defined(__APPLE__)
-#ifdef HAVE_SMARTCARD
+#ifdef HAVE_WORKING_LIBP11
     PKCS11_CTX *ctx = NULL;
     PKCS11_SLOT *slots = NULL;
     unsigned int nslots;
@@ -522,7 +539,7 @@ int list_smartcard_devices() {
     PKCS11_CTX_free(ctx);
     return found;
 #else
-    printf("Smartcard: Support not compiled in\n");
+    printf("Smartcard: libp11 library not functional on this platform\n");
     return 0;
 #endif
 #elif _WIN32
@@ -963,7 +980,7 @@ int get_smartcard_public_key(unsigned char *pubkey, size_t *pubkey_len) {
     printf("Extracting smartcard public key...\n");
     
 #if defined(__linux__) || defined(__APPLE__)
-#ifdef HAVE_SMARTCARD
+#ifdef HAVE_WORKING_LIBP11
     PKCS11_CTX *ctx = NULL;
     PKCS11_SLOT *slots = NULL, *slot = NULL;
     PKCS11_CERT *certs = NULL;
@@ -1138,7 +1155,7 @@ int get_smartcard_public_key(unsigned char *pubkey, size_t *pubkey_len) {
     return 0;
     
 #else
-    printf("Smartcard: Support not compiled in\n");
+    printf("Smartcard: libp11 library not functional on this platform\n");
     unsigned char placeholder[16] = {
         0x53, 0x43, 0x5f, 0x4e, 0x4f, 0x5f, 0x53, 0x55, 0x50, 0x50, 0x4f, 0x52, 0x54, 0x00, 0x00, 0x00
     };

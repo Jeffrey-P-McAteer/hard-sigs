@@ -174,6 +174,7 @@ COMPILE_CMD="$COMPILER -std=c99 -Wall -Wextra -O2 -o hard-sigs hard-sigs.c"
 # Add defines based on available libraries
 if [ "$SMARTCARD_FOUND" = true ]; then
     COMPILE_CMD="$COMPILE_CMD -DHAVE_SMARTCARD"
+    echo "Note: libp11 may have limited functionality on macOS"
 fi
 
 # Add framework for macOS Security framework
