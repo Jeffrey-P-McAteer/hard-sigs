@@ -12,11 +12,11 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <tss2/tss2_esys.h>
-#include <libfido2/fido.h>
+#include <fido.h>
 #elif __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
-#include <libfido2/fido.h>
+#include <fido.h>
 #endif
 
 #define MAX_MESSAGE_SIZE 4096
@@ -163,7 +163,6 @@ int sign_with_fido2(const char *message, unsigned char *signature, size_t *sig_l
 #if defined(__linux__) || defined(__APPLE__)
     fido_init(0);
     fido_dev_t *dev = NULL;
-    fido_assert_t *assert = NULL;
     int r;
     
     fido_dev_info_t *devlist;
