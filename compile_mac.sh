@@ -137,8 +137,8 @@ if [ "$TSS2_FOUND" = false ] || [ "$FIDO2_FOUND" = false ] || [ "$SMARTCARD_FOUN
     if command_exists brew; then
         if [ "$TSS2_FOUND" = false ]; then
             echo "For TPM support (TSS2):"
-            echo "  brew install tpm2-tss"
-            echo "  Note: TPM support on macOS is limited"
+            echo "  Note: tpm2-tss is not available via Homebrew on macOS"
+            echo "  TPM support on macOS is very limited"
             echo
         fi
         if [ "$FIDO2_FOUND" = false ]; then

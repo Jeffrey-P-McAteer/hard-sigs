@@ -49,14 +49,37 @@ jobs:
     - name: Install macOS dependencies
       if: matrix.platform == 'mac'
       run: |
-        # Install Homebrew dependencies
+        # Install available Homebrew dependencies
+        echo "Updating Homebrew..."
         brew update
-        brew install \
-          pkg-config \
-          tpm2-tss \
-          libfido2 \
-          libp11 \
-          opensc
+        
+        echo "Installing core dependencies..."
+        brew install pkg-config
+        
+        echo "Installing optional dependencies..."
+        # Install FIDO2 support
+        if brew install libfido2 2>/dev/null; then
+          echo "[OK] libfido2 installed"
+        else
+          echo "[WARN] libfido2 not available - FIDO2 support will be limited"
+        fi
+        
+        # Install smart card support
+        if brew install opensc 2>/dev/null; then
+          echo "[OK] opensc installed"
+        else
+          echo "[WARN] opensc not available - smart card support will be limited"
+        fi
+        
+        # libp11 might not be available
+        if brew search libp11 >/dev/null 2>&1 && brew install libp11 2>/dev/null; then
+          echo "[OK] libp11 installed"
+        else
+          echo "[WARN] libp11 not available - smart card support will be limited"
+        fi
+        
+        echo "Note: TPM support on macOS is very limited (no tpm2-tss available)"
+        echo "macOS dependencies installation complete"
 
     - name: Setup Windows Build Environment
       if: matrix.platform == 'windows'

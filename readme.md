@@ -72,7 +72,16 @@ cd hard-sigs
 
 **Dependencies:**
 ```bash
-brew install pkg-config tpm2-tss libfido2 libp11 opensc
+# Core dependency
+brew install pkg-config
+
+# Optional dependencies (install what's available)
+brew install libfido2   # For FIDO2 support
+brew install libp11     # For smart card support (if available)
+brew install opensc     # For smart card support (if available)
+
+# Note: TPM support on macOS is very limited
+# tpm2-tss is not available via Homebrew on macOS
 ```
 
 ### Windows
