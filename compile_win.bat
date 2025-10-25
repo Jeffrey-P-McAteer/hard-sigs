@@ -144,22 +144,29 @@ echo Compiling hard-sigs.c...
 
 REM Compile the program
 echo.
-echo Executing: cl /nologo /W3 /O2 /D_CRT_SECURE_NO_WARNINGS /DHAVE_SMARTCARD hard-sigs.c /Fe:hard-sigs.exe kernel32.lib user32.lib advapi32.lib crypt32.lib winscard.lib
+echo Executing: cl /W3 /O2 /D_CRT_SECURE_NO_WARNINGS /DHAVE_TBS /DHAVE_SMARTCARD /DWIN32_LEAN_AND_MEAN hard-sigs.c /Fe:hard-sigs.exe kernel32.lib user32.lib advapi32.lib crypt32.lib winscard.lib tbs.lib
+echo.
 
-cl /nologo /W3 /O2 /D_CRT_SECURE_NO_WARNINGS /DHAVE_SMARTCARD hard-sigs.c /Fe:hard-sigs.exe ^
-   kernel32.lib user32.lib advapi32.lib crypt32.lib winscard.lib
+REM Enable detailed error output and compile
+cl /W3 /O2 /D_CRT_SECURE_NO_WARNINGS /DHAVE_TBS /DHAVE_SMARTCARD /DWIN32_LEAN_AND_MEAN hard-sigs.c /Fe:hard-sigs.exe ^
+   kernel32.lib user32.lib advapi32.lib crypt32.lib winscard.lib tbs.lib 2>&1
 
-if errorlevel 1 (
+set COMPILE_RESULT=%ERRORLEVEL%
+
+if %COMPILE_RESULT% neq 0 (
     echo.
-    echo ERROR: Compilation failed.
+    echo ERROR: Compilation failed with exit code %COMPILE_RESULT%
+    echo.
+    echo Detailed error information should be shown above.
     echo.
     echo Common issues:
     echo   - Missing Windows SDK components
-    echo   - Incompatible Visual Studio version
+    echo   - Incompatible Visual Studio version  
     echo   - Missing TPM libraries (tbs.lib)
+    echo   - Missing Windows smartcard API definitions
     echo.
     echo Try installing the latest Windows SDK or updating Visual Studio.
-    exit /b 1
+    exit /b %COMPILE_RESULT%
 )
 
 REM Clean up object files

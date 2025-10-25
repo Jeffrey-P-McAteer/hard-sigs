@@ -16,6 +16,9 @@ struct option {
 #endif
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #include <wincrypt.h>
 // Only include TBS if available, otherwise use fallback
@@ -526,20 +529,20 @@ int list_smartcard_devices() {
 #ifdef HAVE_SMARTCARD
     // Windows Smart Card API implementation
     SCARDCONTEXT hContext;
-    LPTSTR mszReaders = NULL;
+    char* mszReaders = NULL;
     DWORD dwReaders = SCARD_AUTOALLOCATE;
     LONG lRet;
     int found = 0;
     
     lRet = SCardEstablishContext(SCARD_SCOPE_USER, NULL, NULL, &hContext);
     if (lRet != SCARD_S_SUCCESS) {
-        printf("Smartcard: Failed to establish context (0x%08X)\n", lRet);
+        printf("Smartcard: Failed to establish context (0x%08X)\n", (unsigned int)lRet);
         return 0;
     }
     
-    lRet = SCardListReaders(hContext, NULL, (LPTSTR)&mszReaders, &dwReaders);
+    lRet = SCardListReadersA(hContext, NULL, (char*)&mszReaders, &dwReaders);
     if (lRet == SCARD_S_SUCCESS) {
-        LPTSTR reader = mszReaders;
+        char* reader = mszReaders;
         while (*reader != '\0') {
             printf("Smartcard: %s\n", reader);
             found++;
@@ -547,7 +550,7 @@ int list_smartcard_devices() {
         }
         SCardFreeMemory(hContext, mszReaders);
     } else {
-        printf("Smartcard: No readers found (0x%08X)\n", lRet);
+        printf("Smartcard: No readers found (0x%08X)\n", (unsigned int)lRet);
     }
     
     SCardReleaseContext(hContext);
@@ -1150,13 +1153,13 @@ int get_smartcard_public_key(unsigned char *pubkey, size_t *pubkey_len) {
     
     // Create a synthetic public key based on smartcard reader information
     SCARDCONTEXT hContext;
-    LPTSTR mszReaders = NULL;
+    char* mszReaders = NULL;
     DWORD dwReaders = SCARD_AUTOALLOCATE;
     LONG lRet;
     
     lRet = SCardEstablishContext(SCARD_SCOPE_USER, NULL, NULL, &hContext);
     if (lRet == SCARD_S_SUCCESS) {
-        lRet = SCardListReaders(hContext, NULL, (LPTSTR)&mszReaders, &dwReaders);
+        lRet = SCardListReadersA(hContext, NULL, (char*)&mszReaders, &dwReaders);
         if (lRet == SCARD_S_SUCCESS && mszReaders) {
             // Create a deterministic public key based on reader name
             unsigned char reader_hash[32];
