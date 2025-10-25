@@ -194,9 +194,8 @@ int list_tpm_devices() {
         return 1;
     }
 #else
-    // Fallback: assume TPM is available on Windows
-    printf("TPM: Assumed available (Windows)\n");
-    return 1;
+    printf("TPM: Not available (no TBS support)\n");
+    return 0;
 #endif
 #elif __linux__
     if (access("/dev/tpm0", F_OK) == 0 || access("/dev/tpmrm0", F_OK) == 0) {
@@ -246,9 +245,9 @@ int list_fido2_devices() {
     fido_dev_info_free(&devlist, 64);
     return ndevs > 0;
 #elif _WIN32
-    // Windows FIDO2 device listing
-    printf("FIDO2: Windows WebAuthN device (simulated)\n");
-    return 1; // Assume at least one device is available
+    // Windows FIDO2 device listing - check for actual WebAuthN support
+    printf("FIDO2: Windows WebAuthN support check not implemented\n");
+    return 0; // Report no devices found instead of simulating
 #else
     printf("FIDO2: Not supported on this platform\n");
     return 0;
@@ -257,6 +256,7 @@ int list_fido2_devices() {
 
 int sign_with_tpm(const char *message, unsigned char *signature, size_t *sig_len, 
                   unsigned char *pubkey, size_t *pubkey_len) {
+    (void)message; (void)signature; (void)sig_len; (void)pubkey; (void)pubkey_len;
     printf("Signing with TPM...\n");
     
     // Get the TPM public key first
@@ -278,8 +278,8 @@ int sign_with_tpm(const char *message, unsigned char *signature, size_t *sig_len
     
     TbsCloseContext(hContext);
 #else
-    // Windows TPM fallback implementation
-    printf("Note: Using Windows TPM fallback implementation\n");
+    fprintf(stderr, "Error: Windows TPM implementation not available\n");
+    return -1;
 #endif
     
 #elif __linux__
@@ -292,33 +292,21 @@ int sign_with_tpm(const char *message, unsigned char *signature, size_t *sig_len
         return -1;
     }
     
+    // TODO: Implement proper TPM signing using TSS2 API
+    // This requires creating a key, loading it, and using TPM2_Sign
     Esys_Finalize(&esys_context);
+    fprintf(stderr, "Error: TPM signing not fully implemented - requires proper TSS2 key management\n");
+    return -1;
+#else
+    fprintf(stderr, "Error: TPM not supported on this platform\n");
+    return -1;
 #endif
     
-    // Create signature using the same algorithm as verification
-    size_t msg_len = strlen(message);
-    size_t total_len = msg_len + *pubkey_len;
-    
-    if (total_len > MAX_SIGNATURE_SIZE) {
-        fprintf(stderr, "Error: Message + pubkey too long for signature\n");
-        return -1;
-    }
-    
-    // Combine message and pubkey, then create signature
-    memcpy(signature, message, msg_len);
-    memcpy(signature + msg_len, pubkey, *pubkey_len);
-    *sig_len = total_len;
-    
-    // Apply XOR transformation to create signature
-    for (size_t i = 0; i < *sig_len; i++) {
-        signature[i] ^= 0xAA;
-    }
-    
-    return 0;
 }
 
 int sign_with_fido2(const char *message, unsigned char *signature, size_t *sig_len,
                     unsigned char *pubkey, size_t *pubkey_len) {
+    (void)message; (void)signature; (void)sig_len; (void)pubkey; (void)pubkey_len;
     printf("Signing with FIDO2...\n");
     
     // Get the FIDO2 public key first
@@ -368,40 +356,25 @@ int sign_with_fido2(const char *message, unsigned char *signature, size_t *sig_l
         return -1;
     }
     
+    // TODO: Implement proper FIDO2 signing - requires credential creation and assertion
     fido_dev_close(dev);
     fido_dev_free(&dev);
     fido_dev_info_free(&devlist, 64);
+    fprintf(stderr, "Error: FIDO2 signing not fully implemented - requires proper credential management\n");
+    return -1;
 #elif _WIN32
-    // Windows FIDO2 implementation 
-    printf("Note: Using simplified FIDO2 implementation for Windows\n");
-    // On Windows, libfido2 can also be used but requires different setup
-    // For now, we'll proceed with the fallback signature algorithm
+    // Windows FIDO2 implementation requires proper WebAuthN integration
+    fprintf(stderr, "Error: Windows FIDO2 implementation not available\n");
+    return -1;
+#else
+    fprintf(stderr, "Error: FIDO2 not supported on this platform\n");
+    return -1;
 #endif
-    
-    // Create signature using the same algorithm as verification
-    size_t msg_len = strlen(message);
-    size_t total_len = msg_len + *pubkey_len;
-    
-    if (total_len > MAX_SIGNATURE_SIZE) {
-        fprintf(stderr, "Error: Message + pubkey too long for signature\n");
-        return -1;
-    }
-    
-    // Combine message and pubkey, then create signature
-    memcpy(signature, message, msg_len);
-    memcpy(signature + msg_len, pubkey, *pubkey_len);
-    *sig_len = total_len;
-    
-    // Apply XOR transformation to create signature
-    for (size_t i = 0; i < *sig_len; i++) {
-        signature[i] ^= 0xAA;
-    }
-    
-    return 0;
 }
 
 int sign_with_smartcard(const char *message, unsigned char *signature, size_t *sig_len,
                        unsigned char *pubkey, size_t *pubkey_len) {
+    (void)message; (void)signature; (void)sig_len; (void)pubkey; (void)pubkey_len;
     printf("Signing with smartcard...\n");
     
     // Get the smartcard public key first
@@ -470,46 +443,31 @@ int sign_with_smartcard(const char *message, unsigned char *signature, size_t *s
         return -1;
     }
     
-    // For now, we'll use the same signature algorithm as the other devices
-    // In a real implementation, this would use the private key on the smartcard
-    // to create a proper cryptographic signature
-    printf("Note: Using simplified signature algorithm for smartcard\n");
+    // Real implementation requires private key access on the smartcard
+    fprintf(stderr, "Error: Smartcard signature operation requires proper PKCS#11 implementation\n");
+    PKCS11_CTX_unload(ctx);
+    PKCS11_CTX_free(ctx);
+    return -1;
     
     PKCS11_CTX_unload(ctx);
     PKCS11_CTX_free(ctx);
 #else
-    printf("Smartcard: libp11 library not functional on this platform\n");
-    // Create signature using the same fallback algorithm
+    fprintf(stderr, "Error: libp11 library not functional on this platform\n");
+    return -1;
 #endif
 #elif _WIN32
 #ifdef HAVE_SMARTCARD
-    // Windows Smart Card implementation for signing
-    printf("Note: Using simplified signature algorithm for Windows smartcard\n");
-    // In a real implementation, this would connect to the smartcard,
-    // authenticate the user, and use the private key to sign
+    // Windows Smart Card implementation requires proper CryptoAPI integration
+    fprintf(stderr, "Error: Windows smartcard signature operation not implemented\n");
+    return -1;
+#else
+    fprintf(stderr, "Error: Smartcard support not compiled in\n");
+    return -1;
 #endif
+#else
+    fprintf(stderr, "Error: Smartcard not supported on this platform\n");
+    return -1;
 #endif
-    
-    // Create signature using the same algorithm as verification for consistency
-    size_t msg_len = strlen(message);
-    size_t total_len = msg_len + *pubkey_len;
-    
-    if (total_len > MAX_SIGNATURE_SIZE) {
-        fprintf(stderr, "Error: Message + pubkey too long for signature\n");
-        return -1;
-    }
-    
-    // Combine message and pubkey, then create signature
-    memcpy(signature, message, msg_len);
-    memcpy(signature + msg_len, pubkey, *pubkey_len);
-    *sig_len = total_len;
-    
-    // Apply XOR transformation to create signature
-    for (size_t i = 0; i < *sig_len; i++) {
-        signature[i] ^= 0xAA;
-    }
-    
-    return 0;
 }
 
 int list_smartcard_devices() {
@@ -634,26 +592,17 @@ int get_tpm_public_key(unsigned char *pubkey, size_t *pubkey_len) {
     }
     
     // For Windows, we would typically use TPM commands to read the EK public key
-    // This is a simplified implementation - in practice you'd use TPM2_ReadPublic
-    unsigned char mock_key[256] = {
-        0x30, 0x82, 0x01, 0x0a, 0x02, 0x82, 0x01, 0x01, 0x00, 0xc4, 0xd2, 0x9a, 0x7b, 0x6f, 0x45, 0x23,
-        0x89, 0xab, 0xcd, 0xef, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf1, 0x23, 0x45, 0x67, 0x89
-    };
-    memcpy(pubkey, mock_key, 32);
-    *pubkey_len = 32;
+    // This requires proper TPM2_ReadPublic implementation
+    fprintf(stderr, "Error: Windows TPM public key extraction not implemented\n");
+    TbsCloseContext(hContext);
+    return -1;
     
     TbsCloseContext(hContext);
     return 0;
 #else
-    // Windows TPM fallback - create a synthetic public key
-    printf("Note: Using Windows TPM device identifier\n");
-    unsigned char win_tpm_key[32] = {
-        0x57, 0x49, 0x4e, 0x5f, 0x54, 0x50, 0x4d, 0x5f, 0x50, 0x55, 0x42, 0x4b, 0x45, 0x59, 0x00, 0x01,
-        0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11
-    };
-    memcpy(pubkey, win_tpm_key, 32);
-    *pubkey_len = 32;
-    return 0;
+    // Windows TPM fallback not available
+    fprintf(stderr, "Error: Windows TPM not available or accessible\n");
+    return -1;
 #endif
     
 #elif __linux__
@@ -662,8 +611,8 @@ int get_tpm_public_key(unsigned char *pubkey, size_t *pubkey_len) {
     
     r = Esys_Initialize(&esys_context, NULL, NULL);
     if (r != TSS2_RC_SUCCESS) {
-        printf("Note: TPM context initialization failed, using device-specific key\n");
-        goto fallback;
+        fprintf(stderr, "Error: Failed to initialize TPM context\n");
+        return -1;
     }
     
     // Try a simple approach: create a temporary primary key with proper attributes
@@ -795,41 +744,12 @@ int get_tpm_public_key(unsigned char *pubkey, size_t *pubkey_len) {
     }
     
     Esys_Finalize(&esys_context);
-    printf("Note: Using device-specific identifier due to TPM access restrictions\n");
-    
-fallback:
-    // Generate a deterministic device-specific key based on TPM capabilities
-    unsigned char device_key[32];
-    memset(device_key, 0, sizeof(device_key));
-    
-    // Try to get some device-specific information
-    FILE *f = fopen("/sys/class/tpm/tpm0/device/description", "r");
-    if (f) {
-        char desc[64];
-        if (fgets(desc, sizeof(desc), f)) {
-            // Hash the description to create a device-specific key
-            for (size_t i = 0; i < strlen(desc) && i < 32; i++) {
-                device_key[i % 32] ^= (unsigned char)desc[i];
-            }
-        }
-        fclose(f);
-    } else {
-        // Fallback pattern with TPM identifier
-        const char tpm_id[] = "TPM2_DEVICE_SPECIFIC_KEY_ID";
-        memcpy(device_key, tpm_id, strlen(tpm_id));
-    }
-    
-    memcpy(pubkey, device_key, 32);
-    *pubkey_len = 32;
-    return 0;
+    fprintf(stderr, "Error: TPM key creation failed\n");
+    return -1;
     
 #else
-    unsigned char placeholder[16] = {
-        0x55, 0x4e, 0x53, 0x55, 0x50, 0x50, 0x4f, 0x52, 0x54, 0x45, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00
-    };
-    memcpy(pubkey, placeholder, 16);
-    *pubkey_len = 16;
-    return 0;
+    fprintf(stderr, "Error: TPM not supported on this platform\n");
+    return -1;
 #endif
 }
 
@@ -969,51 +889,28 @@ int get_fido2_public_key(unsigned char *pubkey, size_t *pubkey_len) {
         fido_cbor_info_free(&info);
     }
     
-    // Fallback: return device identifier based on path
-    unsigned char device_id[32];
-    memset(device_id, 0, sizeof(device_id));
-    strncpy((char*)device_id, path, sizeof(device_id) - 1);
-    
-    // Hash the device path to create a consistent identifier
-    for (size_t i = 0; i < strlen(path) && i < 32; i++) {
-        device_id[i % 32] ^= (unsigned char)path[i];
-    }
-    
-    memcpy(pubkey, device_id, 32);
-    *pubkey_len = 32;
+    // Real FIDO2 credential creation failed
+    fprintf(stderr, "Error: Failed to create FIDO2 credential or extract public key\n");
     
     fido_cred_free(&cred);
     fido_dev_close(dev);
     fido_dev_free(&dev);
     fido_dev_info_free(&devlist, 64);
-    return 0;
+    return -1;
     
 #elif _WIN32
-    // Windows FIDO2 public key implementation
-    printf("Note: Using Windows FIDO2 device identifier\n");
-    
-    // Create a synthetic public key for Windows FIDO2 devices
-    // In a real implementation, this would use Windows WebAuthN API
-    unsigned char win_fido_key[32] = {
-        0x57, 0x49, 0x4e, 0x5f, 0x46, 0x49, 0x44, 0x4f, 0x32, 0x5f, 0x50, 0x55, 0x42, 0x4b, 0x45, 0x59,
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
-    };
-    
-    memcpy(pubkey, win_fido_key, 32);
-    *pubkey_len = 32;
-    return 0;
+    // Windows FIDO2 public key implementation requires proper WebAuthN API
+    fprintf(stderr, "Error: Windows FIDO2 public key extraction not implemented\n");
+    return -1;
     
 #else
-    unsigned char placeholder[16] = {
-        0x46, 0x49, 0x44, 0x4f, 0x32, 0x5f, 0x4e, 0x4f, 0x5f, 0x53, 0x55, 0x50, 0x50, 0x4f, 0x52, 0x54
-    };
-    memcpy(pubkey, placeholder, 16);
-    *pubkey_len = 16;
-    return 0;
+    fprintf(stderr, "Error: FIDO2 not supported on this platform\n");
+    return -1;
 #endif
 }
 
 int get_smartcard_public_key(unsigned char *pubkey, size_t *pubkey_len) {
+    (void)pubkey; (void)pubkey_len;
     printf("Extracting smartcard public key...\n");
     
 #if defined(__linux__) || defined(__APPLE__)
@@ -1168,97 +1065,32 @@ int get_smartcard_public_key(unsigned char *pubkey, size_t *pubkey_len) {
     
     EVP_PKEY_free(pkey);
     
-    // Fallback: create device-specific identifier
-    printf("Note: Using device-specific identifier for smartcard\n");
-    unsigned char device_id[32];
-    memset(device_id, 0, sizeof(device_id));
-    
-    // Use token label and manufacturer to create unique ID
-    const char *label = slot->token->label ? slot->token->label : "SMARTCARD";
-    const char *manuf = slot->token->manufacturer ? slot->token->manufacturer : "UNKNOWN";
-    
-    snprintf((char*)device_id, sizeof(device_id), "SC:%.10s:%.10s", label, manuf);
-    
-    // Hash it to create consistent identifier
-    for (size_t i = 0; i < strlen((char*)device_id) && i < 32; i++) {
-        device_id[i % 32] ^= device_id[i];
-    }
-    
-    memcpy(pubkey, device_id, 32);
-    *pubkey_len = 32;
+    // Real implementation requires proper certificate/key extraction
+    fprintf(stderr, "Error: Failed to extract public key from smartcard certificate\n");
     
     PKCS11_CTX_unload(ctx);
     PKCS11_CTX_free(ctx);
     return 0;
     
 #else
-    printf("Smartcard: libp11 library not functional on this platform\n");
-    unsigned char placeholder[16] = {
-        0x53, 0x43, 0x5f, 0x4e, 0x4f, 0x5f, 0x53, 0x55, 0x50, 0x50, 0x4f, 0x52, 0x54, 0x00, 0x00, 0x00
-    };
-    memcpy(pubkey, placeholder, 16);
-    *pubkey_len = 16;
-    return 0;
+    fprintf(stderr, "Error: libp11 library not functional on this platform\n");
+    return -1;
 #endif
 #elif _WIN32
 #ifdef HAVE_SMARTCARD
     // Windows Smart Card implementation for public key extraction
     printf("Extracting Windows smartcard public key...\n");
     
-    // Create a synthetic public key based on smartcard reader information
-    SCARDCONTEXT hContext;
-    char* mszReaders = NULL;
-    DWORD dwReaders = SCARD_AUTOALLOCATE;
-    LONG lRet;
-    
-    lRet = SCardEstablishContext(SCARD_SCOPE_USER, NULL, NULL, &hContext);
-    if (lRet == SCARD_S_SUCCESS) {
-        lRet = SCardListReadersA(hContext, NULL, (char*)&mszReaders, &dwReaders);
-        if (lRet == SCARD_S_SUCCESS && mszReaders) {
-            // Create a deterministic public key based on reader name
-            unsigned char reader_hash[32];
-            memset(reader_hash, 0, sizeof(reader_hash));
-            
-            size_t reader_len = strlen(mszReaders);
-            for (size_t i = 0; i < reader_len && i < 32; i++) {
-                reader_hash[i] = mszReaders[i] ^ 0x55; // Simple transformation
-            }
-            
-            memcpy(pubkey, reader_hash, 32);
-            *pubkey_len = 32;
-            
-            SCardFreeMemory(hContext, mszReaders);
-            SCardReleaseContext(hContext);
-            return 0;
-        }
-        SCardReleaseContext(hContext);
-    }
-    
-    // Fallback if no readers found
-    printf("Note: Using default Windows smartcard key\n");
-    unsigned char win_placeholder[16] = {
-        0x57, 0x49, 0x4e, 0x5f, 0x53, 0x43, 0x41, 0x52, 0x44, 0x5f, 0x4b, 0x45, 0x59, 0x00, 0x00, 0x00
-    };
-    memcpy(pubkey, win_placeholder, 16);
-    *pubkey_len = 16;
-    return 0;
+    // Windows Smart Card implementation requires proper certificate access
+    fprintf(stderr, "Error: Windows smartcard public key extraction not implemented\n");
+    return -1;
 #else
-    printf("Smartcard: Support not compiled in\n");
-    unsigned char placeholder[16] = {
-        0x53, 0x43, 0x5f, 0x4e, 0x4f, 0x5f, 0x53, 0x55, 0x50, 0x50, 0x4f, 0x52, 0x54, 0x00, 0x00, 0x00
-    };
-    memcpy(pubkey, placeholder, 16);
-    *pubkey_len = 16;
-    return 0;
+    fprintf(stderr, "Error: Smartcard support not compiled in\n");
+    return -1;
 #endif
 #else
-    printf("Smartcard: Not supported on this platform\n");
-    unsigned char placeholder[16] = {
-        0x53, 0x43, 0x5f, 0x55, 0x4e, 0x53, 0x55, 0x50, 0x50, 0x4f, 0x52, 0x54, 0x45, 0x44, 0x00, 0x00
-    };
-    memcpy(pubkey, placeholder, 16);
-    *pubkey_len = 16;
-    return 0;
+    fprintf(stderr, "Error: Smartcard not supported on this platform\n");
+    return -1;
 #endif
 }
 
@@ -1413,7 +1245,8 @@ device_type_t detect_best_device() {
     if (list_smartcard_devices() > 0) {
         return DEVICE_SMARTCARD;
     }
-    return DEVICE_TPM;
+    // No devices found
+    return DEVICE_AUTO; // Will cause error in main
 }
 
 // Windows-compatible command line parsing
@@ -1632,9 +1465,15 @@ int main(int argc, char *argv[]) {
     
     if (opts.device_type == DEVICE_AUTO) {
         opts.device_type = detect_best_device();
+        if (opts.device_type == DEVICE_AUTO) {
+            fprintf(stderr, "Error: No hardware signature devices found\n");
+            fprintf(stderr, "Please install and configure TPM, FIDO2, or smart card hardware\n");
+            return 1;
+        }
         if (opts.verbose) {
             printf("Auto-detected device type: %s\n", 
-                   opts.device_type == DEVICE_TPM ? "TPM" : "FIDO2");
+                   opts.device_type == DEVICE_TPM ? "TPM" : 
+                   opts.device_type == DEVICE_FIDO2 ? "FIDO2" : "Smartcard");
         }
     }
     
