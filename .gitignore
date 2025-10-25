@@ -3,3 +3,8 @@ build
 target
 release
 obj
+hard-sigs
+hard-sigs.exe
+hard-sigs.EXE
+
+
