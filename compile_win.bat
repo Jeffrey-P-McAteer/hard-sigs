@@ -144,12 +144,12 @@ echo Compiling hard-sigs.c...
 
 REM Compile the program
 echo.
-echo Executing: cl /W3 /O2 /D_CRT_SECURE_NO_WARNINGS /DHAVE_TBS /DHAVE_SMARTCARD /DWIN32_LEAN_AND_MEAN hard-sigs.c /Fe:hard-sigs.exe kernel32.lib user32.lib advapi32.lib crypt32.lib winscard.lib tbs.lib
+echo Executing: cl /W3 /O2 /D_CRT_SECURE_NO_WARNINGS /DHAVE_SMARTCARD /DWIN32_LEAN_AND_MEAN hard-sigs.c /Fe:hard-sigs.exe kernel32.lib user32.lib advapi32.lib crypt32.lib winscard.lib
 echo.
 
-REM Enable detailed error output and compile
-cl /W3 /O2 /D_CRT_SECURE_NO_WARNINGS /DHAVE_TBS /DHAVE_SMARTCARD /DWIN32_LEAN_AND_MEAN hard-sigs.c /Fe:hard-sigs.exe ^
-   kernel32.lib user32.lib advapi32.lib crypt32.lib winscard.lib tbs.lib 2>&1
+REM Enable detailed error output and compile (disable TBS due to linking issues)
+cl /W3 /O2 /D_CRT_SECURE_NO_WARNINGS /DHAVE_SMARTCARD /DWIN32_LEAN_AND_MEAN hard-sigs.c /Fe:hard-sigs.exe ^
+   kernel32.lib user32.lib advapi32.lib crypt32.lib winscard.lib 2>&1
 
 set COMPILE_RESULT=%ERRORLEVEL%
 
