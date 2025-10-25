@@ -36,12 +36,12 @@ package_installed() {
 echo "Checking for C compiler..."
 if command_exists gcc; then
     COMPILER="gcc"
-    echo -e "  ${GREEN}✓${NC} GCC found: $(gcc --version | head -n1)"
+    echo -e "  ${GREEN}[OK]${NC} GCC found: $(gcc --version | head -n1)"
 elif command_exists clang; then
     COMPILER="clang"
-    echo -e "  ${GREEN}✓${NC} Clang found: $(clang --version | head -n1)"
+    echo -e "  ${GREEN}[OK]${NC} Clang found: $(clang --version | head -n1)"
 else
-    echo -e "  ${RED}✗${NC} No C compiler found"
+    echo -e "  ${RED}[ERROR]${NC} No C compiler found"
     echo
     echo "ERROR: GCC or Clang is required for compilation."
     echo "Install using your package manager:"
@@ -56,9 +56,9 @@ fi
 # Check for pkg-config
 echo "Checking for pkg-config..."
 if command_exists pkg-config; then
-    echo -e "  ${GREEN}✓${NC} pkg-config found"
+    echo -e "  ${GREEN}[OK]${NC} pkg-config found"
 else
-    echo -e "  ${RED}✗${NC} pkg-config not found"
+    echo -e "  ${RED}[ERROR]${NC} pkg-config not found"
     echo
     echo "ERROR: pkg-config is required for dependency detection."
     echo "Install using your package manager:"
@@ -79,14 +79,14 @@ if pkg-config --exists tss2-esys 2>/dev/null; then
     TSS2_FOUND=true
     TSS2_CFLAGS=$(pkg-config --cflags tss2-esys)
     TSS2_LIBS=$(pkg-config --libs tss2-esys)
-    echo -e "  ${GREEN}✓${NC} TSS2 ESYS library found"
+    echo -e "  ${GREEN}[OK]${NC} TSS2 ESYS library found"
 elif [ -f "/usr/include/tss2/tss2_esys.h" ] || [ -f "/usr/local/include/tss2/tss2_esys.h" ]; then
     TSS2_FOUND=true
     TSS2_CFLAGS=""
     TSS2_LIBS="-ltss2-esys -ltss2-sys -ltss2-mu"
-    echo -e "  ${GREEN}✓${NC} TSS2 headers found (fallback detection)"
+    echo -e "  ${GREEN}[OK]${NC} TSS2 headers found (fallback detection)"
 else
-    echo -e "  ${YELLOW}⚠${NC} TSS2 library not found"
+    echo -e "  ${YELLOW}[WARN]${NC} TSS2 library not found"
     echo "    TPM functionality will be limited"
     TSS2_CFLAGS=""
     TSS2_LIBS=""
@@ -98,14 +98,14 @@ if pkg-config --exists libfido2 2>/dev/null; then
     FIDO2_FOUND=true
     FIDO2_CFLAGS=$(pkg-config --cflags libfido2)
     FIDO2_LIBS=$(pkg-config --libs libfido2)
-    echo -e "  ${GREEN}✓${NC} libfido2 found"
+    echo -e "  ${GREEN}[OK]${NC} libfido2 found"
 elif [ -f "/usr/include/fido.h" ] || [ -f "/usr/local/include/fido.h" ] || [ -f "/usr/include/libfido2/fido.h" ]; then
     FIDO2_FOUND=true
     FIDO2_CFLAGS=""
     FIDO2_LIBS="-lfido2"
-    echo -e "  ${GREEN}✓${NC} libfido2 headers found (fallback detection)"
+    echo -e "  ${GREEN}[OK]${NC} libfido2 headers found (fallback detection)"
 else
-    echo -e "  ${YELLOW}⚠${NC} libfido2 not found"
+    echo -e "  ${YELLOW}[WARN]${NC} libfido2 not found"
     echo "    FIDO2 functionality will be limited"
     FIDO2_CFLAGS=""
     FIDO2_LIBS=""
@@ -117,14 +117,14 @@ if pkg-config --exists libp11 2>/dev/null; then
     SMARTCARD_FOUND=true
     SMARTCARD_CFLAGS=$(pkg-config --cflags libp11)
     SMARTCARD_LIBS=$(pkg-config --libs libp11)
-    echo -e "  ${GREEN}✓${NC} libp11 found"
+    echo -e "  ${GREEN}[OK]${NC} libp11 found"
 elif [ -f "/usr/include/libp11.h" ] || [ -f "/usr/local/include/libp11.h" ]; then
     SMARTCARD_FOUND=true
     SMARTCARD_CFLAGS=""
     SMARTCARD_LIBS="-lp11 -lcrypto -ldl"
-    echo -e "  ${GREEN}✓${NC} libp11 headers found (fallback detection)"
+    echo -e "  ${GREEN}[OK]${NC} libp11 headers found (fallback detection)"
 else
-    echo -e "  ${YELLOW}⚠${NC} libp11 not found"
+    echo -e "  ${YELLOW}[WARN]${NC} libp11 not found"
     echo "    Smartcard functionality will be limited"
     SMARTCARD_CFLAGS=""
     SMARTCARD_LIBS=""
@@ -194,7 +194,7 @@ echo
 # Compile
 if eval "$COMPILE_CMD"; then
     echo
-    echo -e "${GREEN}✓${NC} Compilation successful!"
+    echo -e "${GREEN}[SUCCESS]${NC} Compilation successful!"
     echo "Created: hard-sigs"
     
     # Make executable
@@ -204,9 +204,9 @@ if eval "$COMPILE_CMD"; then
     echo
     echo "Testing executable..."
     if ./hard-sigs --help >/dev/null 2>&1; then
-        echo -e "${GREEN}✓${NC} Executable test passed"
+        echo -e "${GREEN}[OK]${NC} Executable test passed"
     else
-        echo -e "${YELLOW}⚠${NC} Executable test failed. Program may have runtime dependencies."
+        echo -e "${YELLOW}[WARN]${NC} Executable test failed. Program may have runtime dependencies."
         echo "You may need to install runtime libraries:"
         if [ "$TSS2_FOUND" = true ]; then
             echo "  - TPM2 TSS runtime libraries"

@@ -28,14 +28,14 @@ brew_package_installed() {
 # Check for Xcode Command Line Tools
 echo "Checking for development tools..."
 if command_exists clang && command_exists make; then
-    echo -e "  ${GREEN}✓${NC} Xcode Command Line Tools found"
+    echo -e "  ${GREEN}[OK]${NC} Xcode Command Line Tools found"
     COMPILER="clang"
-    echo -e "  ${GREEN}✓${NC} Clang found: $(clang --version | head -n1)"
+    echo -e "  ${GREEN}[OK]${NC} Clang found: $(clang --version | head -n1)"
 elif xcode-select -p >/dev/null 2>&1; then
-    echo -e "  ${GREEN}✓${NC} Xcode found"
+    echo -e "  ${GREEN}[OK]${NC} Xcode found"
     COMPILER="clang"
 else
-    echo -e "  ${RED}✗${NC} Xcode Command Line Tools not found"
+    echo -e "  ${RED}[ERROR]${NC} Xcode Command Line Tools not found"
     echo
     echo "ERROR: Xcode Command Line Tools are required for compilation."
     echo "Install using: xcode-select --install"
@@ -46,9 +46,9 @@ fi
 # Check for Homebrew
 echo "Checking for Homebrew..."
 if command_exists brew; then
-    echo -e "  ${GREEN}✓${NC} Homebrew found: $(brew --version | head -n1)"
+    echo -e "  ${GREEN}[OK]${NC} Homebrew found: $(brew --version | head -n1)"
 else
-    echo -e "  ${YELLOW}⚠${NC} Homebrew not found"
+    echo -e "  ${YELLOW}[WARN]${NC} Homebrew not found"
     echo "  Homebrew is recommended for installing dependencies."
     echo "  Install from: https://brew.sh"
     echo
@@ -57,12 +57,12 @@ fi
 # Check for pkg-config
 echo "Checking for pkg-config..."
 if command_exists pkg-config; then
-    echo -e "  ${GREEN}✓${NC} pkg-config found"
+    echo -e "  ${GREEN}[OK]${NC} pkg-config found"
 elif command_exists brew && brew_package_installed pkg-config; then
-    echo -e "  ${GREEN}✓${NC} pkg-config found via Homebrew"
+    echo -e "  ${GREEN}[OK]${NC} pkg-config found via Homebrew"
     export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
 else
-    echo -e "  ${YELLOW}⚠${NC} pkg-config not found"
+    echo -e "  ${YELLOW}[WARN]${NC} pkg-config not found"
     if command_exists brew; then
         echo "  You can install it with: brew install pkg-config"
     fi
@@ -78,14 +78,14 @@ if command_exists pkg-config && pkg-config --exists tss2-esys 2>/dev/null; then
     TSS2_FOUND=true
     TSS2_CFLAGS=$(pkg-config --cflags tss2-esys)
     TSS2_LIBS=$(pkg-config --libs tss2-esys)
-    echo -e "  ${GREEN}✓${NC} TSS2 ESYS library found"
+    echo -e "  ${GREEN}[OK]${NC} TSS2 ESYS library found"
 elif [ -f "/opt/homebrew/include/tss2/tss2_esys.h" ] || [ -f "/usr/local/include/tss2/tss2_esys.h" ]; then
     TSS2_FOUND=true
     TSS2_CFLAGS="-I/opt/homebrew/include -I/usr/local/include"
     TSS2_LIBS="-L/opt/homebrew/lib -L/usr/local/lib -ltss2-esys -ltss2-sys -ltss2-mu"
-    echo -e "  ${GREEN}✓${NC} TSS2 headers found"
+    echo -e "  ${GREEN}[OK]${NC} TSS2 headers found"
 else
-    echo -e "  ${YELLOW}⚠${NC} TSS2 library not found"
+    echo -e "  ${YELLOW}[WARN]${NC} TSS2 library not found"
     echo "    TPM functionality will be limited on macOS"
     TSS2_CFLAGS=""
     TSS2_LIBS=""
@@ -97,14 +97,14 @@ if command_exists pkg-config && pkg-config --exists libfido2 2>/dev/null; then
     FIDO2_FOUND=true
     FIDO2_CFLAGS=$(pkg-config --cflags libfido2)
     FIDO2_LIBS=$(pkg-config --libs libfido2)
-    echo -e "  ${GREEN}✓${NC} libfido2 found via pkg-config"
+    echo -e "  ${GREEN}[OK]${NC} libfido2 found via pkg-config"
 elif [ -f "/opt/homebrew/include/fido.h" ] || [ -f "/usr/local/include/fido.h" ] || [ -f "/opt/homebrew/include/libfido2/fido.h" ] || [ -f "/usr/local/include/libfido2/fido.h" ]; then
     FIDO2_FOUND=true
     FIDO2_CFLAGS="-I/opt/homebrew/include -I/usr/local/include"
     FIDO2_LIBS="-L/opt/homebrew/lib -L/usr/local/lib -lfido2"
-    echo -e "  ${GREEN}✓${NC} libfido2 headers found"
+    echo -e "  ${GREEN}[OK]${NC} libfido2 headers found"
 else
-    echo -e "  ${YELLOW}⚠${NC} libfido2 not found"
+    echo -e "  ${YELLOW}[WARN]${NC} libfido2 not found"
     echo "    FIDO2 functionality will be limited"
     FIDO2_CFLAGS=""
     FIDO2_LIBS=""
@@ -116,14 +116,14 @@ if command_exists pkg-config && pkg-config --exists libp11 2>/dev/null; then
     SMARTCARD_FOUND=true
     SMARTCARD_CFLAGS=$(pkg-config --cflags libp11)
     SMARTCARD_LIBS=$(pkg-config --libs libp11)
-    echo -e "  ${GREEN}✓${NC} libp11 found via pkg-config"
+    echo -e "  ${GREEN}[OK]${NC} libp11 found via pkg-config"
 elif [ -f "/opt/homebrew/include/libp11.h" ] || [ -f "/usr/local/include/libp11.h" ]; then
     SMARTCARD_FOUND=true
     SMARTCARD_CFLAGS="-I/opt/homebrew/include -I/usr/local/include"
     SMARTCARD_LIBS="-L/opt/homebrew/lib -L/usr/local/lib -lp11 -lcrypto"
-    echo -e "  ${GREEN}✓${NC} libp11 headers found"
+    echo -e "  ${GREEN}[OK]${NC} libp11 headers found"
 else
-    echo -e "  ${YELLOW}⚠${NC} libp11 not found"
+    echo -e "  ${YELLOW}[WARN]${NC} libp11 not found"
     echo "    Smartcard functionality will be limited"
     SMARTCARD_CFLAGS=""
     SMARTCARD_LIBS=""
@@ -189,7 +189,7 @@ echo
 # Compile
 if eval "$COMPILE_CMD"; then
     echo
-    echo -e "${GREEN}✓${NC} Compilation successful!"
+    echo -e "${GREEN}[SUCCESS]${NC} Compilation successful!"
     echo "Created: hard-sigs"
     
     # Make executable
@@ -199,9 +199,9 @@ if eval "$COMPILE_CMD"; then
     echo
     echo "Testing executable..."
     if ./hard-sigs --help >/dev/null 2>&1; then
-        echo -e "${GREEN}✓${NC} Executable test passed"
+        echo -e "${GREEN}[OK]${NC} Executable test passed"
     else
-        echo -e "${YELLOW}⚠${NC} Executable test failed. Program may have runtime dependencies."
+        echo -e "${YELLOW}[WARN]${NC} Executable test failed. Program may have runtime dependencies."
         echo "You may need to install runtime libraries:"
         if [ "$TSS2_FOUND" = true ]; then
             echo "  - TPM2 TSS runtime libraries"
@@ -219,9 +219,9 @@ if eval "$COMPILE_CMD"; then
     echo "Checking code signing..."
     if command_exists codesign; then
         if codesign -v hard-sigs 2>/dev/null; then
-            echo -e "${GREEN}✓${NC} Executable is code signed"
+            echo -e "${GREEN}[OK]${NC} Executable is code signed"
         else
-            echo -e "${YELLOW}⚠${NC} Executable is not code signed"
+            echo -e "${YELLOW}[WARN]${NC} Executable is not code signed"
             echo "  For distribution, consider signing with: codesign -s 'Developer ID' hard-sigs"
         fi
     fi

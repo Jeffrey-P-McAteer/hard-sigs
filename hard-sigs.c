@@ -1227,10 +1227,10 @@ int verify_tpm_signature(const char *message, const unsigned char *signature, si
     expected_len = strlen(expected_sig);
     
     if (sig_len == expected_len && memcmp(signature, expected_sig, sig_len) == 0) {
-        printf("✓ TPM signature verification successful\n");
+        printf("[OK] TPM signature verification successful\n");
         return 0;
     } else {
-        printf("✗ TPM signature verification failed\n");
+        printf("[FAIL] TPM signature verification failed\n");
         return -1;
     }
 }
@@ -1246,10 +1246,10 @@ int verify_fido2_signature(const char *message, const unsigned char *signature, 
     }
     
     if (strstr((char*)signature, message) != NULL) {
-        printf("✓ FIDO2 signature verification successful\n");
+        printf("[OK] FIDO2 signature verification successful\n");
         return 0;
     } else {
-        printf("✗ FIDO2 signature verification failed\n");
+        printf("[FAIL] FIDO2 signature verification failed\n");
         return -1;
     }
 }
@@ -1563,10 +1563,10 @@ int main(int argc, char *argv[]) {
         int result = verify_signature_with_pubkey(opts.message, signature, sig_len, pubkey, pubkey_len);
         
         if (result == 0) {
-            printf("✓ Signature verification SUCCESSFUL\n");
+            printf("[SUCCESS] Signature verification SUCCESSFUL\n");
             printf("The message was signed by the provided public key.\n");
         } else {
-            printf("✗ Signature verification FAILED\n");
+            printf("[FAILED] Signature verification FAILED\n");
             printf("The message was NOT signed by the provided public key.\n");
         }
         
