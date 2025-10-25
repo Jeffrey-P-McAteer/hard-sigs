@@ -111,8 +111,27 @@ else
     FIDO2_LIBS=""
 fi
 
+# Check for smartcard libraries (libp11 and OpenSC)
+SMARTCARD_FOUND=false
+if pkg-config --exists libp11 2>/dev/null; then
+    SMARTCARD_FOUND=true
+    SMARTCARD_CFLAGS=$(pkg-config --cflags libp11)
+    SMARTCARD_LIBS=$(pkg-config --libs libp11)
+    echo -e "  ${GREEN}✓${NC} libp11 found"
+elif [ -f "/usr/include/libp11.h" ] || [ -f "/usr/local/include/libp11.h" ]; then
+    SMARTCARD_FOUND=true
+    SMARTCARD_CFLAGS=""
+    SMARTCARD_LIBS="-lp11 -lcrypto -ldl"
+    echo -e "  ${GREEN}✓${NC} libp11 headers found (fallback detection)"
+else
+    echo -e "  ${YELLOW}⚠${NC} libp11 not found"
+    echo "    Smartcard functionality will be limited"
+    SMARTCARD_CFLAGS=""
+    SMARTCARD_LIBS=""
+fi
+
 # Print installation suggestions if libraries are missing
-if [ "$TSS2_FOUND" = false ] || [ "$FIDO2_FOUND" = false ]; then
+if [ "$TSS2_FOUND" = false ] || [ "$FIDO2_FOUND" = false ] || [ "$SMARTCARD_FOUND" = false ]; then
     echo
     echo "Optional dependencies missing. To install:"
     echo
@@ -134,6 +153,15 @@ if [ "$TSS2_FOUND" = false ] || [ "$FIDO2_FOUND" = false ]; then
         echo "  Alpine:        sudo apk add libfido2-dev"
         echo
     fi
+    if [ "$SMARTCARD_FOUND" = false ]; then
+        echo "For smartcard support:"
+        echo "  Ubuntu/Debian: sudo apt install libp11-dev opensc"
+        echo "  CentOS/RHEL:   sudo yum install libp11-devel opensc"
+        echo "  Fedora:        sudo dnf install libp11-devel opensc"
+        echo "  Arch Linux:    sudo pacman -S libp11 opensc"
+        echo "  Alpine:        sudo apk add libp11-dev opensc"
+        echo
+    fi
     echo "Continuing with limited functionality..."
     echo
 fi
@@ -148,8 +176,14 @@ echo "Compiling hard-sigs.c..."
 
 # Build compiler command
 COMPILE_CMD="$COMPILER -std=c99 -Wall -Wextra -O2 -o hard-sigs hard-sigs.c"
-COMPILE_CMD="$COMPILE_CMD $TSS2_CFLAGS $FIDO2_CFLAGS"
-COMPILE_CMD="$COMPILE_CMD $TSS2_LIBS $FIDO2_LIBS"
+
+# Add defines based on available libraries
+if [ "$SMARTCARD_FOUND" = true ]; then
+    COMPILE_CMD="$COMPILE_CMD -DHAVE_SMARTCARD"
+fi
+
+COMPILE_CMD="$COMPILE_CMD $TSS2_CFLAGS $FIDO2_CFLAGS $SMARTCARD_CFLAGS"
+COMPILE_CMD="$COMPILE_CMD $TSS2_LIBS $FIDO2_LIBS $SMARTCARD_LIBS"
 
 # Add common system libraries
 COMPILE_CMD="$COMPILE_CMD -lc"
@@ -179,6 +213,9 @@ if eval "$COMPILE_CMD"; then
         fi
         if [ "$FIDO2_FOUND" = true ]; then
             echo "  - libfido2 runtime libraries"
+        fi
+        if [ "$SMARTCARD_FOUND" = true ]; then
+            echo "  - libp11 and OpenSC runtime libraries"
         fi
     fi
     

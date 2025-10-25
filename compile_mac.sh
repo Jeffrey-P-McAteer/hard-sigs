@@ -110,8 +110,27 @@ else
     FIDO2_LIBS=""
 fi
 
+# Check for smartcard libraries (libp11)
+SMARTCARD_FOUND=false
+if command_exists pkg-config && pkg-config --exists libp11 2>/dev/null; then
+    SMARTCARD_FOUND=true
+    SMARTCARD_CFLAGS=$(pkg-config --cflags libp11)
+    SMARTCARD_LIBS=$(pkg-config --libs libp11)
+    echo -e "  ${GREEN}✓${NC} libp11 found via pkg-config"
+elif [ -f "/opt/homebrew/include/libp11.h" ] || [ -f "/usr/local/include/libp11.h" ]; then
+    SMARTCARD_FOUND=true
+    SMARTCARD_CFLAGS="-I/opt/homebrew/include -I/usr/local/include"
+    SMARTCARD_LIBS="-L/opt/homebrew/lib -L/usr/local/lib -lp11 -lcrypto"
+    echo -e "  ${GREEN}✓${NC} libp11 headers found"
+else
+    echo -e "  ${YELLOW}⚠${NC} libp11 not found"
+    echo "    Smartcard functionality will be limited"
+    SMARTCARD_CFLAGS=""
+    SMARTCARD_LIBS=""
+fi
+
 # Print installation suggestions if libraries are missing
-if [ "$TSS2_FOUND" = false ] || [ "$FIDO2_FOUND" = false ]; then
+if [ "$TSS2_FOUND" = false ] || [ "$FIDO2_FOUND" = false ] || [ "$SMARTCARD_FOUND" = false ]; then
     echo
     echo "Optional dependencies missing. To install:"
     echo
@@ -125,6 +144,11 @@ if [ "$TSS2_FOUND" = false ] || [ "$FIDO2_FOUND" = false ]; then
         if [ "$FIDO2_FOUND" = false ]; then
             echo "For FIDO2 support:"
             echo "  brew install libfido2"
+            echo
+        fi
+        if [ "$SMARTCARD_FOUND" = false ]; then
+            echo "For smartcard support:"
+            echo "  brew install libp11 opensc"
             echo
         fi
     else
@@ -147,12 +171,17 @@ echo "Compiling hard-sigs.c..."
 # Build compiler command
 COMPILE_CMD="$COMPILER -std=c99 -Wall -Wextra -O2 -o hard-sigs hard-sigs.c"
 
+# Add defines based on available libraries
+if [ "$SMARTCARD_FOUND" = true ]; then
+    COMPILE_CMD="$COMPILE_CMD -DHAVE_SMARTCARD"
+fi
+
 # Add framework for macOS Security framework
 COMPILE_CMD="$COMPILE_CMD -framework Security -framework CoreFoundation"
 
 # Add library flags
-COMPILE_CMD="$COMPILE_CMD $TSS2_CFLAGS $FIDO2_CFLAGS"
-COMPILE_CMD="$COMPILE_CMD $TSS2_LIBS $FIDO2_LIBS"
+COMPILE_CMD="$COMPILE_CMD $TSS2_CFLAGS $FIDO2_CFLAGS $SMARTCARD_CFLAGS"
+COMPILE_CMD="$COMPILE_CMD $TSS2_LIBS $FIDO2_LIBS $SMARTCARD_LIBS"
 
 echo "Executing: $COMPILE_CMD"
 echo
@@ -179,6 +208,9 @@ if eval "$COMPILE_CMD"; then
         fi
         if [ "$FIDO2_FOUND" = true ]; then
             echo "  - libfido2 runtime libraries"
+        fi
+        if [ "$SMARTCARD_FOUND" = true ]; then
+            echo "  - libp11 and OpenSC runtime libraries"
         fi
     fi
     

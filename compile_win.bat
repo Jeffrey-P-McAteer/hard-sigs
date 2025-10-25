@@ -85,8 +85,8 @@ echo.
 echo Compiling hard-sigs.c...
 
 REM Compile the program
-cl /nologo /W3 /O2 /D_CRT_SECURE_NO_WARNINGS hard-sigs.c /Fe:hard-sigs.exe ^
-   kernel32.lib user32.lib advapi32.lib tbs.lib
+cl /nologo /W3 /O2 /D_CRT_SECURE_NO_WARNINGS /DHAVE_SMARTCARD hard-sigs.c /Fe:hard-sigs.exe ^
+   kernel32.lib user32.lib advapi32.lib tbs.lib crypt32.lib winscard.lib
 
 if errorlevel 1 (
     echo.
