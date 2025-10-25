@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ master ]
 
+# Add permissions for the workflow
+permissions:
+  contents: write
+  releases: write
+  actions: read
+
 jobs:
   build:
     name: Build on ${{ matrix.os }}
@@ -121,7 +127,7 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     
     steps:
     - name: Checkout code
