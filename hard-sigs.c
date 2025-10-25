@@ -19,14 +19,51 @@ struct option {
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#ifndef WINVER
+#define WINVER 0x0601  // Windows 7 or later
+#endif
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601  // Windows 7 or later
+#endif
 #include <windows.h>
 #include <wincrypt.h>
-// Only include TBS if available, otherwise use fallback
+// Include TBS and Smart Card headers with error handling
 #if defined(HAVE_TBS)
-#include <tbs.h>
+#ifdef __cplusplus
+extern "C" {
 #endif
-#ifdef HAVE_WORKING_LIBP11
+#include <tbs.h>
+#ifdef __cplusplus
+}
+#endif
+#define HAVE_WORKING_TBS 1
+#endif
+#ifdef HAVE_SMARTCARD
 #include <winscard.h>
+// Fallback declarations if functions aren't found
+#ifndef SCARD_SCOPE_USER
+#define SCARD_SCOPE_USER 0
+#endif
+#ifndef SCARD_AUTOALLOCATE
+#define SCARD_AUTOALLOCATE ((DWORD)-1)
+#endif
+#ifndef SCARD_S_SUCCESS
+#define SCARD_S_SUCCESS 0
+#endif
+#endif
+
+// Fallback TBS declarations if not found
+#if defined(HAVE_TBS) && !defined(TBS_SUCCESS)
+typedef UINT32 TBS_RESULT;
+typedef HANDLE TBS_HCONTEXT;
+typedef struct {
+    UINT32 version;
+} TBS_CONTEXT_PARAMS;
+#define TBS_SUCCESS 0
+#define TBS_CONTEXT_VERSION_ONE 1
+// Function declarations if not found in headers
+DECLSPEC_IMPORT TBS_RESULT WINAPI TbsCreateContext(const TBS_CONTEXT_PARAMS* pContextParams, TBS_HCONTEXT* phContext);
+DECLSPEC_IMPORT TBS_RESULT WINAPI TbsCloseContext(TBS_HCONTEXT hContext);
 #endif
 #elif __linux__
 #include <fcntl.h>
@@ -146,7 +183,7 @@ int sign_with_smartcard(const char *message, unsigned char *signature, size_t *s
 
 int list_tpm_devices() {
 #ifdef _WIN32
-#if defined(HAVE_TBS)
+#if defined(HAVE_WORKING_TBS)
     TBS_HCONTEXT hContext;
     TBS_CONTEXT_PARAMS params = {0};
     params.version = TBS_CONTEXT_VERSION_ONE;
@@ -229,7 +266,7 @@ int sign_with_tpm(const char *message, unsigned char *signature, size_t *sig_len
     }
     
 #ifdef _WIN32
-#if defined(HAVE_TBS)
+#if defined(HAVE_WORKING_TBS)
     TBS_HCONTEXT hContext;
     TBS_CONTEXT_PARAMS params = {0};
     params.version = TBS_CONTEXT_VERSION_ONE;
@@ -586,7 +623,7 @@ int get_tpm_public_key(unsigned char *pubkey, size_t *pubkey_len) {
     printf("Extracting TPM public key...\n");
     
 #ifdef _WIN32
-#if defined(HAVE_TBS)
+#if defined(HAVE_WORKING_TBS)
     TBS_HCONTEXT hContext;
     TBS_CONTEXT_PARAMS params = {0};
     params.version = TBS_CONTEXT_VERSION_ONE;
