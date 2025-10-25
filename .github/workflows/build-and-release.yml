@@ -60,10 +60,14 @@ jobs:
 
     - name: Setup Windows Build Environment
       if: matrix.platform == 'windows'
-      uses: microsoft/setup-msbuild@v2
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
 
     - name: Build binary
       run: ${{ matrix.compile_script }}
+      env:
+        CI: true
 
     - name: Rename binary to final name
       shell: bash
