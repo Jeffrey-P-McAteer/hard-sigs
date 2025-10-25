@@ -1,7 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <getopt.h>
+#else
+// Define getopt constants for Windows compatibility
+#define required_argument 1
+#define no_argument 0
+struct option {
+    const char *name;
+    int has_arg;
+    int *flag;
+    int val;
+};
+#endif
 
 #ifdef _WIN32
 #include <windows.h>
@@ -1321,10 +1333,76 @@ device_type_t detect_best_device() {
     return DEVICE_TPM;
 }
 
+// Windows-compatible command line parsing
+#ifdef _WIN32
+int parse_windows_args(int argc, char *argv[], options_t *opts) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--device") == 0 || strcmp(argv[i], "-d") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: --device requires an argument\n");
+                return -1;
+            }
+            i++;
+            if (strcmp(argv[i], "auto") == 0) {
+                opts->device_type = DEVICE_AUTO;
+            } else if (strcmp(argv[i], "tpm") == 0) {
+                opts->device_type = DEVICE_TPM;
+            } else if (strcmp(argv[i], "fido2") == 0) {
+                opts->device_type = DEVICE_FIDO2;
+            } else if (strcmp(argv[i], "sc") == 0) {
+                opts->device_type = DEVICE_SMARTCARD;
+            } else {
+                fprintf(stderr, "Error: Invalid device type '%s'\n", argv[i]);
+                return -1;
+            }
+        } else if (strcmp(argv[i], "--signature") == 0 || strcmp(argv[i], "-s") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: --signature requires an argument\n");
+                return -1;
+            }
+            opts->signature_hex = argv[++i];
+        } else if (strcmp(argv[i], "--pubkey") == 0 || strcmp(argv[i], "-p") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: --pubkey requires an argument\n");
+                return -1;
+            }
+            opts->pubkey_hex = argv[++i];
+        } else if (strcmp(argv[i], "--list") == 0 || strcmp(argv[i], "-l") == 0) {
+            opts->list_devices = 1;
+        } else if (strcmp(argv[i], "--pubkeys") == 0 || strcmp(argv[i], "-k") == 0) {
+            opts->show_pubkeys = 1;
+        } else if (strcmp(argv[i], "--verify") == 0) {
+            opts->verify_signature = 1;
+        } else if (strcmp(argv[i], "--verbose") == 0 || strcmp(argv[i], "-v") == 0) {
+            opts->verbose = 1;
+        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            print_usage(argv[0]);
+            return 1;
+        } else if (argv[i][0] != '-') {
+            // This is the message argument
+            opts->message = argv[i];
+        } else {
+            fprintf(stderr, "Error: Unknown option '%s'\n", argv[i]);
+            return -1;
+        }
+    }
+    return 0;
+}
+#endif
+
 int main(int argc, char *argv[]) {
     options_t opts = {0};
     opts.device_type = DEVICE_AUTO;
     
+#ifdef _WIN32
+    // Use Windows-compatible argument parsing
+    int parse_result = parse_windows_args(argc, argv, &opts);
+    if (parse_result != 0) {
+        if (parse_result > 0) return 0; // Help was shown
+        return 1; // Error occurred
+    }
+#else
+    // Use POSIX getopt on non-Windows systems
     static struct option long_options[] = {
         {"device", required_argument, 0, 'd'},
         {"signature", required_argument, 0, 's'},
@@ -1381,6 +1459,7 @@ int main(int argc, char *argv[]) {
                 abort();
         }
     }
+#endif
     
     if (opts.list_devices) {
         printf("Available hardware signature devices:\n");
@@ -1394,6 +1473,8 @@ int main(int argc, char *argv[]) {
         return show_all_public_keys();
     }
     
+#ifndef _WIN32
+    // On POSIX systems, message comes from optind
     if (optind >= argc) {
         fprintf(stderr, "Error: No message provided\n");
         print_usage(argv[0]);
@@ -1401,6 +1482,14 @@ int main(int argc, char *argv[]) {
     }
     
     opts.message = argv[optind];
+#else
+    // On Windows, message should already be parsed by parse_windows_args
+    if (!opts.message) {
+        fprintf(stderr, "Error: No message provided\n");
+        print_usage(argv[0]);
+        return 1;
+    }
+#endif
     
     if (strlen(opts.message) > MAX_MESSAGE_SIZE) {
         fprintf(stderr, "Error: Message too long (max %d characters)\n", MAX_MESSAGE_SIZE);
