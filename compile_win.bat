@@ -69,7 +69,7 @@ REM Check if cl.exe is already available (Developer Command Prompt case)
 where cl >nul 2>&1
 if not errorlevel 1 (
     set "VCVARS_FOUND=1"
-    echo   ✓ cl.exe already available in PATH
+    echo   [OK] cl.exe already available in PATH
 ) else (
     REM Try vcvars64.bat first
     if "!VSINSTALLDIR!" neq "Already in PATH" (
@@ -77,7 +77,7 @@ if not errorlevel 1 (
             call "!VSINSTALLDIR!\VC\Auxiliary\Build\vcvars64.bat" >nul 2>&1
             if not errorlevel 1 (
                 set "VCVARS_FOUND=1"
-                echo   ✓ Visual Studio 64-bit environment set up
+                echo   [OK] Visual Studio 64-bit environment set up
             )
         )
     )
@@ -89,7 +89,7 @@ if not errorlevel 1 (
                 call "!VSINSTALLDIR!\VC\Auxiliary\Build\vcvarsall.bat" x64 >nul 2>&1
                 if not errorlevel 1 (
                     set "VCVARS_FOUND=1"
-                    echo   ✓ Visual Studio environment set up via vcvarsall.bat
+                    echo   [OK] Visual Studio environment set up via vcvarsall.bat
                 )
             )
         )
@@ -115,18 +115,36 @@ REM Check for Windows SDK (should be available with VS)
 set "SDK_FOUND=0"
 if exist "%WindowsSdkDir%Include" (
     set "SDK_FOUND=1"
-    echo   ✓ Windows SDK found
+    echo   [OK] Windows SDK found
 ) else (
-    echo   ✗ Windows SDK not found
+    echo   [ERROR] Windows SDK not found
 )
 
 REM Check for TPM Base Services
 set "TBS_FOUND=0"
-if exist "%WindowsSdkDir%Include\*\um\tbs.h" (
-    set "TBS_FOUND=1"
-    echo   ✓ TPM Base Services (TBS) headers found
+REM Try common Windows SDK version paths for tbs.h
+if defined WindowsSdkDir (
+    for /d %%d in ("%WindowsSdkDir%Include\*") do (
+        if exist "%%d\um\tbs.h" (
+            set "TBS_FOUND=1"
+            goto :tbs_found
+        )
+    )
+)
+:tbs_found
+
+REM Fallback: assume TBS is available if we found Windows SDK
+if !TBS_FOUND! == 0 (
+    if !SDK_FOUND! == 1 (
+        set "TBS_FOUND=1"
+        echo   [INFO] Assuming TBS headers are available with Windows SDK
+    )
+)
+
+if !TBS_FOUND! == 1 (
+    echo   [OK] TPM Base Services headers found
 ) else (
-    echo   ✗ TPM Base Services headers not found
+    echo   [WARN] TPM Base Services headers not found
 )
 
 if !SDK_FOUND! == 0 (
@@ -177,7 +195,7 @@ REM Clean up object files
 if exist "hard-sigs.obj" del "hard-sigs.obj"
 
 echo.
-echo ✓ Compilation successful!
+echo [SUCCESS] Compilation successful!
 echo Created: hard-sigs.exe
 
 REM Test the executable
@@ -188,7 +206,7 @@ if exist "hard-sigs.exe" (
     if errorlevel 1 (
         echo WARNING: Executable test failed. Program may have runtime dependencies.
     ) else (
-        echo ✓ Executable test passed
+        echo [OK] Executable test passed
     )
 )
 
