@@ -1,0 +1,219 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            artifact_name: hard-sigs.linux.x64
+            compile_script: ./compile_linux.sh
+          - os: windows-latest
+            platform: windows
+            arch: x64
+            artifact_name: hard-sigs.win.x64.exe
+            compile_script: .\compile_win.bat
+          - os: macos-latest
+            platform: mac
+            arch: arm64
+            artifact_name: hard-sigs.mac.arm64
+            compile_script: ./compile_mac.sh
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Linux dependencies
+      if: matrix.platform == 'linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          pkg-config \
+          libtss2-dev \
+          libfido2-dev \
+          libp11-dev \
+          opensc
+
+    - name: Install macOS dependencies
+      if: matrix.platform == 'mac'
+      run: |
+        # Install Homebrew dependencies
+        brew update
+        brew install \
+          pkg-config \
+          tpm2-tss \
+          libfido2 \
+          libp11 \
+          opensc
+
+    - name: Setup Windows Build Environment
+      if: matrix.platform == 'windows'
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Build binary
+      run: ${{ matrix.compile_script }}
+
+    - name: Rename binary to final name
+      shell: bash
+      run: |
+        if [ "${{ matrix.platform }}" = "windows" ]; then
+          mv hard-sigs.exe ${{ matrix.artifact_name }}
+        else
+          mv hard-sigs ${{ matrix.artifact_name }}
+        fi
+
+    - name: Test binary
+      shell: bash
+      run: |
+        if [ "${{ matrix.platform }}" = "windows" ]; then
+          ./${{ matrix.artifact_name }} --help
+        else
+          ./${{ matrix.artifact_name }} --help
+        fi
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_name }}
+        retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+
+    - name: List artifacts for debugging
+      run: |
+        echo "Artifacts downloaded:"
+        find ./artifacts -type f -ls
+
+    - name: Prepare artifacts for release
+      run: |
+        mkdir -p ./release
+        # Copy artifacts with proper names
+        cp ./artifacts/hard-sigs.linux.x64/hard-sigs.linux.x64 ./release/
+        cp ./artifacts/hard-sigs.win.x64.exe/hard-sigs.win.x64.exe ./release/
+        cp ./artifacts/hard-sigs.mac.arm64/hard-sigs.mac.arm64 ./release/
+        
+        # Make sure Linux and macOS binaries are executable
+        chmod +x ./release/hard-sigs.linux.x64
+        chmod +x ./release/hard-sigs.mac.arm64
+        
+        echo "Release artifacts:"
+        ls -la ./release/
+
+    - name: Generate release tag
+      id: tag
+      run: |
+        # Create a unique tag based on commit hash and timestamp
+        COMMIT_HASH=$(git rev-parse --short HEAD)
+        TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+        TAG="v${TIMESTAMP}-${COMMIT_HASH}"
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "Generated tag: ${TAG}"
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        COMMIT_HASH=$(git rev-parse HEAD)
+        COMMIT_MSG=$(git log -1 --pretty=format:'%s' HEAD)
+        COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an' HEAD)
+        
+        cat > release_notes.md << EOF
+        # Hard-Sigs Release ${{ steps.tag.outputs.tag }}
+        
+        **Commit:** ${COMMIT_HASH}  
+        **Message:** ${COMMIT_MSG}  
+        **Author:** ${COMMIT_AUTHOR}  
+        **Built:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        
+        ## Download Instructions
+        
+        Choose the binary for your platform:
+        
+        - **Windows x64**: \`hard-sigs.win.x64.exe\`
+        - **Linux x64**: \`hard-sigs.linux.x64\`
+        - **macOS ARM64**: \`hard-sigs.mac.arm64\`
+        
+        ## Usage
+        
+        After downloading, make the binary executable (Linux/macOS only):
+        \`\`\`bash
+        chmod +x hard-sigs.linux.x64
+        # or
+        chmod +x hard-sigs.mac.arm64
+        \`\`\`
+        
+        Then run:
+        \`\`\`bash
+        # Show help
+        ./hard-sigs.linux.x64 --help
+        
+        # Sign a message
+        ./hard-sigs.linux.x64 "Hello World"
+        
+        # List devices
+        ./hard-sigs.linux.x64 --list
+        \`\`\`
+        
+        ## Features
+        
+        - TPM 2.0 signature support
+        - FIDO2 security key support  
+        - Smart card (PIV) support
+        - Cross-platform compatibility
+        - Signature verification
+        EOF
+        
+        echo "Generated release notes"
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.tag.outputs.tag }}
+        name: "Hard-Sigs ${{ steps.tag.outputs.tag }}"
+        body_path: release_notes.md
+        draft: false
+        prerelease: false
+        files: |
+          ./release/hard-sigs.win.x64.exe
+          ./release/hard-sigs.linux.x64
+          ./release/hard-sigs.mac.arm64
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Release Summary
+      run: |
+        echo "✅ Release ${{ steps.tag.outputs.tag }} created successfully!"
+        echo ""
+        echo "Artifacts published:"
+        echo "- hard-sigs.win.x64.exe (Windows x64)"
+        echo "- hard-sigs.linux.x64 (Linux x64)"  
+        echo "- hard-sigs.mac.arm64 (macOS ARM64)"
+        echo ""
+        echo "Users can download these from the GitHub Releases page."

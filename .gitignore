@@ -1,10 +1,32 @@
-bin
-build
-target
-release
-obj
+# Build outputs
 hard-sigs
 hard-sigs.exe
-hard-sigs.EXE
+*.exe
+*.obj
+*.o
+
+# Release artifacts
+*.linux.*
+*.win.*
+*.mac.*
+
+# Platform-specific
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Test files
+test.*
+*.sig
 
 
