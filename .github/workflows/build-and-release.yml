@@ -9,7 +9,6 @@ on:
 # Add permissions for the workflow
 permissions:
   contents: write
-  releases: write
   actions: read
 
 jobs:
